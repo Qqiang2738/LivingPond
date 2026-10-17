@@ -1,0 +1,16 @@
+Living Pond V0.9.4.2 audio attribution (redistribution and modifications)
+
+"Light Forest Rain" by Tim Kahn (tim.kahn), Freesound sound #169031.
+Original: https://freesound.org/people/tim.kahn/sounds/169031/
+License: Creative Commons Attribution 4.0 International (CC BY 4.0).
+License text: https://creativecommons.org/licenses/by/4.0/
+Provided by the user from the source above.
+Changes for this app: converted 48kHz stereo 24-bit WAV to 48kHz stereo AAC/M4A,
+approximately +3 dB gain with a peak limiter, 65 Hz high-pass filtering, seamless six-second
+head/tail crossfade for continuous playback; new length approximately 9m34s.
+Source file was ~9m46s.
+File in application: forest-rain-tim-kahn.m4a.
+
+Feed sound effects: feed-plop-1.wav, feed-plop-2.wav are
+procedurally generated effects retained from previous Living Pond releases.
+No internet connection is needed to build or listen.

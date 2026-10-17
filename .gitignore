@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# 构建产物
+.build/
+.swiftpm/
+*.app/
+*.log
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+
+# Python 工具
+__pycache__/
+*.pyc
