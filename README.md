@@ -7,6 +7,11 @@
 
 <p align="center"><img src="preview/V095-scenery-material-preview.jpg" alt="池水场景预览" width="900"></p>
 
+<p align="center">
+  <a href="preview/real-rain-15s.mp3">▶ 试听 15 秒细雨声</a><br>
+  <sub>Tim Kahn《Light Forest Rain》· CC BY 4.0 · 本项目加工版本，署名与改动见 <a href="Resources/Sound/ATTRIBUTION.txt">ATTRIBUTION.txt</a></sub>
+</p>
+
 回到已经成熟的 11 条鱼：**3 条大鱼 + 8 条小鱼**。不再包含 26 条微型群游鱼、领游轨迹、群游菜单或实验代码。本工程以 V1.0.0 的 11 鱼原生场景为基础，保留其 AppKit/SpriteKit、投食浮层、声音、细雨和低功耗/诊断。
 
 ## 这次修订
