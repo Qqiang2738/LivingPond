@@ -1,0 +1,20 @@
+# NOTICE
+
+本项目的源码采用 MIT 协议（见 `LICENSE`）。
+
+以下音频素材**不适用** MIT 协议，保留其原始许可条款：
+
+## Resources/Sound/forest-rain-tim-kahn.m4a
+
+- 作品：**Light Forest Rain**
+- 作者：Tim Kahn (tim.kahn)，Freesound sound #169031
+- 原始链接：https://freesound.org/people/tim.kahn/sounds/169031/
+- 许可：Creative Commons Attribution 4.0 International (CC BY 4.0)
+- 许可全文：https://creativecommons.org/licenses/by/4.0/
+
+本项目对该音频所做的处理（转码为 48kHz 立体声 AAC/M4A、约 +3 dB 增益并加峰值限制器、
+65 Hz 高通滤波、首尾 6 秒无缝交叉淡化以支持循环播放）详见
+`Resources/Sound/ATTRIBUTION.txt`。
+
+`Resources/Sound/feed-plop-1.wav`、`Resources/Sound/feed-plop-2.wav`
+为本项目早期版本程序化生成的音效，同样随 MIT 协议发布。
