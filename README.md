@@ -1,4 +1,11 @@
-# 一池清宁 · Living Pond V1.1.2（稳定收敛候选版）
+<h1 align="center">一池清宁 · Living Pond V1.1.2</h1>
+
+<p align="center">
+  <img src="preview/AppIcon-1024.png" width="120" alt="一池清宁图标"><br>
+  <strong>稳定收敛候选版 · macOS 原生（Swift / AppKit / SpriteKit）桌面锦鲤鱼缸</strong>
+</p>
+
+<p align="center"><img src="preview/V095-scenery-material-preview.jpg" alt="池水场景预览" width="900"></p>
 
 回到已经成熟的 11 条鱼：**3 条大鱼 + 8 条小鱼**。不再包含 26 条微型群游鱼、领游轨迹、群游菜单或实验代码。本工程以 V1.0.0 的 11 鱼原生场景为基础，保留其 AppKit/SpriteKit、投食浮层、声音、细雨和低功耗/诊断。
 
@@ -55,3 +62,9 @@
 **质量状态：V1.1.2 Release Candidate**。Linux 环境能检查 Swift 语法及纯 Swift 测试，但不能代替 Intel macOS 编译、UI 实机体验、代码签名及长时间性能验收。只有用户真机确认后才可标为 Stable。
 
 内置 Tim Kahn《Light Forest Rain》录音的署名与 CC BY 4.0 许可，见 `Resources/Sound/ATTRIBUTION.txt`。
+
+## 开发素材存档
+
+以下为开发过程的对比记录，**非当前版本实际画面**，保留供追溯用。
+
+<img src="preview/scenery-material-comparison.jpg" alt="池底植物材质对比：左为原场景，右为扩充植物素材" width="900">
