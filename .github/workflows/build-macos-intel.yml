@@ -1,0 +1,78 @@
+name: Build macOS Intel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-macos-intel.yml'
+      - 'Sources/**'
+      - 'Resources/**'
+      - 'Info.plist'
+      - 'tests/test-frame-meter.swift'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile and package Living Pond (Intel)
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Inspect compiler and validate Swift syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          uname -a
+          xcrun swiftc --version
+          xcrun swiftc -parse Sources/*.swift
+          /usr/bin/plutil -lint Info.plist
+
+      - name: Run frame metrics test
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swiftc Sources/FrameMetrics.swift tests/test-frame-meter.swift -o "$RUNNER_TEMP/frame-meter-tests"
+          "$RUNNER_TEMP/frame-meter-tests"
+
+      - name: Build and verify signed Intel app
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/一池清宁.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Art" "$APP/Contents/Resources/Sound"
+          /bin/cp Info.plist "$APP/Contents/Info.plist"
+          /usr/bin/ditto Resources/Art "$APP/Contents/Resources/Art"
+          /usr/bin/ditto Resources/Sound "$APP/Contents/Resources/Sound"
+          /usr/bin/iconutil -c icns Resources/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
+          xcrun swiftc -O -target x86_64-apple-macosx13.0 \
+            Sources/main.swift \
+            Sources/PondApp.swift \
+            Sources/PondScene.swift \
+            Sources/FrameMetrics.swift \
+            Sources/NativeFish.swift \
+            Sources/PondSoundController.swift \
+            -framework AppKit -framework SpriteKit -framework CoreGraphics \
+            -framework AVFoundation -framework ServiceManagement -framework QuartzCore \
+            -o "$APP/Contents/MacOS/LivingPond"
+          chmod 755 "$APP/Contents/MacOS/LivingPond"
+          /usr/bin/codesign --force --sign - "$APP"
+          /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist"
+          /usr/bin/file "$APP/Contents/MacOS/LivingPond"
+          /usr/bin/lipo -verify_arch x86_64 "$APP/Contents/MacOS/LivingPond"
+          mkdir -p "$RUNNER_TEMP/dist"
+          /usr/bin/ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/dist/LivingPond-V1.1.2-macOS-Intel.zip"
+          /usr/bin/unzip -t "$RUNNER_TEMP/dist/LivingPond-V1.1.2-macOS-Intel.zip"
+
+      - name: Upload macOS app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LivingPond-V1.1.2-macOS-Intel
+          path: ${{ runner.temp }}/dist/LivingPond-V1.1.2-macOS-Intel.zip
+          if-no-files-found: error
+          retention-days: 30
