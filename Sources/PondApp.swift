@@ -177,13 +177,15 @@ private final class PondFoodJarButton: NSButton {
                              xRadius:3,yRadius:3)
         NSColor(calibratedRed:0.79,green:0.66,blue:0.47,alpha:1).setFill()
         lid.fill()
-        for (x,y) in [(-4.0,-3.0),(4.0,0.0),(0.0,4.0)] {
+        let dots:[(CGFloat,CGFloat)]=[(-4,-3),(4,0),(0,4)]
+        for (x,y) in dots {
             let grain=NSBezierPath(ovalIn:NSRect(x:center+x-1.7,y:21+y-1.7,width:3.4,height:3.4))
             NSColor(calibratedRed:0.52,green:0.35,blue:0.20,alpha:1).setFill()
             grain.fill()
         }
         if hasFood {
-            for (x,y) in [(-16.0,46.0),(-4.0,49.0),(11.0,47.0)] {
+            let flying:[(CGFloat,CGFloat)]=[(-16,46),(-4,49),(11,47)]
+            for (x,y) in flying {
                 let fleck=NSBezierPath(ovalIn:NSRect(x:center+x,y:y,width:3.7,height:2.8))
                 NSColor(calibratedRed:0.95,green:0.78,blue:0.45,alpha:1).setFill()
                 fleck.fill()
