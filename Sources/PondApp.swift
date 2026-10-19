@@ -159,6 +159,7 @@ private enum PondJarCursor {
             NSColor(calibratedRed:0.03,green:0.10,blue:0.09,alpha:0.33).setFill()
             shadow.fill()
 
+            NSGraphicsContext.saveGraphicsState()
             let transform=NSAffineTransform()
             transform.translateX(by:24,yBy:29)
             transform.rotate(byDegrees:-26)
@@ -203,7 +204,7 @@ private enum PondJarCursor {
             let grains:[(CGFloat,CGFloat,CGFloat)]=[
                 (40,13,3.8),(44,9,3.1),(48,5,2.8)
             ]
-            NSAffineTransform(transform:transform.inverted() as AffineTransform).concat()
+            NSGraphicsContext.restoreGraphicsState()
             for (x,y,r) in grains {
                 let pellet=NSBezierPath(ovalIn:NSRect(x:x-r/2,y:y-r/2,width:r,height:r))
                 NSColor(calibratedRed:0.95,green:0.78,blue:0.47,alpha:1).setFill()
