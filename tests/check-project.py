@@ -6,8 +6,8 @@ import plistlib, hashlib, re, subprocess, json
 p=Path(__file__).resolve().parents[1]
 info=plistlib.loads((p/'Info.plist').read_bytes())
 assert info['CFBundleIdentifier']=='studio.livingpond.app'
-assert info['CFBundleShortVersionString']=='1.1.2'
-assert info['CFBundleVersion']=='1112'
+assert info['CFBundleShortVersionString']=='1.1.4'
+assert info['CFBundleVersion']=='1114'
 assert info['CFBundleDisplayName']=='一池清宁'
 assert info['CFBundleIconFile']=='AppIcon'
 assert info['LSUIElement'] and info['LSMinimumSystemVersion']=='13.0'
@@ -86,5 +86,5 @@ assert 'pondPreferencesMigratedV112' in main
 assert 'studio.livingpond.native.v111' in main
 assert 'pondSchoolEnabled' not in main
 assert 'service.register()' in app and 'service.unregister()' in app
-assert 'V1.1.2' in app and 'stability-v1.1.2.log' in app
+assert 'V1.1.4 RC' in app and 'stability-v1.1.4.log' in app
 print('PASS regression: 11-fish scene, feeding-jar UI, responsive feeding, untouched art/sound, selectors')
