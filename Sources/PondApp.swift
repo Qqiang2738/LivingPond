@@ -591,6 +591,17 @@ final class PondApp: NSObject, NSApplicationDelegate {
 
 // Sync login status from macOS, including changes made in System Settings.
 extension PondApp: NSMenuDelegate {
+    // AppKit status-menu tracking can interrupt the SKView render/update loop.
+    // Discard the elapsed wall-clock gap on both transitions so the first frame
+    // after dismissing the menu does not simulate a backlog of fish movement.
+    func menuWillOpen(_ menu: NSMenu) {
+        scene?.resetFrameClock()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        scene?.resetFrameClock()
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         loginMenu?.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
