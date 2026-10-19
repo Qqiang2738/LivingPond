@@ -149,6 +149,60 @@ private final class PondControlRow: NSButton {
     }
 }
 
+/// Tiny hand-drawn ceramic food jar. It is part of the existing feeding HUD,
+/// not another window and not an image asset loaded every frame.
+private final class PondFoodJarButton: NSButton {
+    var hasFood=false { didSet { needsDisplay=true } }
+
+    override func draw(_ dirtyRect:NSRect) {
+        let outer=NSBezierPath(roundedRect:bounds.insetBy(dx:1,dy:1),xRadius:11,yRadius:11)
+        (hasFood
+         ? NSColor(calibratedRed:0.38,green:0.46,blue:0.33,alpha:1)
+         : NSColor(calibratedRed:0.19,green:0.31,blue:0.28,alpha:1)).setFill()
+        outer.fill()
+        NSColor(calibratedRed:0.64,green:0.76,blue:0.62,alpha:0.55).setStroke()
+        outer.lineWidth=0.7
+        outer.stroke()
+
+        let center=bounds.midX
+        let body=NSBezierPath(roundedRect:NSRect(x:center-12,y:10,width:24,height:28),
+                              xRadius:5,yRadius:5)
+        NSColor(calibratedRed:0.66,green:0.55,blue:0.39,alpha:1).setFill()
+        body.fill()
+        let label=NSBezierPath(roundedRect:NSRect(x:center-9,y:15,width:18,height:15),
+                               xRadius:3,yRadius:3)
+        NSColor(calibratedRed:0.87,green:0.77,blue:0.56,alpha:1).setFill()
+        label.fill()
+        let lid=NSBezierPath(roundedRect:NSRect(x:center-14,y:34,width:28,height:8),
+                             xRadius:3,yRadius:3)
+        NSColor(calibratedRed:0.79,green:0.66,blue:0.47,alpha:1).setFill()
+        lid.fill()
+        for (x,y) in [(-4.0,-3.0),(4.0,0.0),(0.0,4.0)] {
+            let grain=NSBezierPath(ovalIn:NSRect(x:center+x-1.7,y:21+y-1.7,width:3.4,height:3.4))
+            NSColor(calibratedRed:0.52,green:0.35,blue:0.20,alpha:1).setFill()
+            grain.fill()
+        }
+        if hasFood {
+            for (x,y) in [(-16.0,46.0),(-4.0,49.0),(11.0,47.0)] {
+                let fleck=NSBezierPath(ovalIn:NSRect(x:center+x,y:y,width:3.7,height:2.8))
+                NSColor(calibratedRed:0.95,green:0.78,blue:0.45,alpha:1).setFill()
+                fleck.fill()
+            }
+        }
+    }
+}
+
+/// The closed-hand cursor marks a loaded handful. No polling and no cursor
+/// image allocations during SpriteKit's update loop.
+private final class PondFeedingView: SKView {
+    var foodReady=false { didSet { window?.invalidateCursorRects(for:self) } }
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(bounds,cursor:foodReady ? .closedHand : .arrow)
+    }
+}
+
 final class PondDesktopWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -173,7 +227,10 @@ final class PondApp: NSObject, NSApplicationDelegate {
     private var soundMenu: NSMenuItem?
     private var volumeMenu: NSMenuItem?
     private var volumePresetItems: [NSMenuItem] = []
-    private var feedingOverlay: NSVisualEffectView?
+    private var feedingOverlay: NSView?
+    private var foodJarButton: PondFoodJarButton?
+    private var feedingHintLabel: NSTextField?
+    private var feedingArmed = false
     private var overlayAnimationToken = 0
     private var loginMenu: NSMenuItem?
     private var lowPowerMenu: NSMenuItem?
@@ -591,7 +648,7 @@ final class PondApp: NSObject, NSApplicationDelegate {
 
         let container=NSView(frame:NSRect(origin:.zero,size:screen.frame.size))
         container.autoresizingMask=[.width,.height]
-        let sk=SKView(frame:container.bounds)
+        let sk=PondFeedingView(frame:container.bounds)
         sk.autoresizingMask=[.width,.height]
         sk.ignoresSiblingOrder=true
         sk.preferredFramesPerSecond=lowPower ? 30 : 60
@@ -602,6 +659,7 @@ final class PondApp: NSObject, NSApplicationDelegate {
         pond.setRainEnabled(rain)
         pond.setLowPower(lowPower)
         pond.onFeeding = { [weak self] in self?.sound.playFeedingRipple() }
+        pond.onSurfaceClick = { [weak self] point in self?.scatterFoodAt(point) }
         sk.presentScene(pond)
         container.addSubview(sk)
 
@@ -615,8 +673,8 @@ final class PondApp: NSObject, NSApplicationDelegate {
         NSLayoutConstraint.activate([
             overlay.topAnchor.constraint(equalTo:container.topAnchor,constant:30),
             overlay.trailingAnchor.constraint(equalTo:container.trailingAnchor,constant:-32),
-            overlay.widthAnchor.constraint(equalToConstant:276),
-            overlay.heightAnchor.constraint(equalToConstant:54)
+            overlay.widthAnchor.constraint(equalToConstant:346),
+            overlay.heightAnchor.constraint(equalToConstant:86)
         ])
         window.contentView=container
         window.orderFrontRegardless()
@@ -626,40 +684,44 @@ final class PondApp: NSObject, NSApplicationDelegate {
         self.feedingOverlay=overlay
     }
 
-    /// Minimal status overlay for the few seconds spent feeding. No debug copy,
-    /// no extra windows, and no controls placed near the bottom Dock.
-    private func makeFeedingOverlay() -> NSVisualEffectView {
-        let effect=NSVisualEffectView(frame:.zero)
-        effect.material = .hudWindow
-        effect.blendingMode = .withinWindow
-        effect.state = .active
-        effect.appearance = NSAppearance(named:.darkAqua)
-        effect.wantsLayer=true
-        effect.layer?.cornerRadius=17
-        effect.layer?.masksToBounds=true
+    /// A small permanent-position HUD appears only while feeding.
+    /// The jar is a real clickable control; the fish pond stays unobstructed.
+    private func makeFeedingOverlay() -> NSView {
+        let hud=NSView(frame:.zero)
+        hud.wantsLayer=true
+        hud.layer?.backgroundColor=NSColor(calibratedRed:0.102,green:0.173,
+                                            blue:0.174,alpha:0.97).cgColor
+        hud.layer?.cornerRadius=17
+        hud.layer?.masksToBounds=true
+        hud.layer?.borderWidth=0.8
+        hud.layer?.borderColor=NSColor(calibratedRed:0.72,green:0.84,
+                                       blue:0.77,alpha:0.22).cgColor
 
-        let symbol=NSImageView(frame:.zero)
-        symbol.translatesAutoresizingMaskIntoConstraints=false
-        symbol.image=NSImage(systemSymbolName:"hand.tap.fill",accessibilityDescription:"投食")
-        symbol.contentTintColor=NSColor(calibratedRed:0.86,green:0.88,blue:0.70,alpha:1)
-        symbol.imageScaling = .scaleProportionallyDown
-        symbol.setContentHuggingPriority(.required,for:.horizontal)
+        let jar=PondFoodJarButton(frame:.zero)
+        jar.isBordered=false
+        jar.title=""
+        jar.focusRingType = .none
+        jar.target=self
+        jar.action=#selector(grabFood)
+        jar.toolTip="抓取一把鱼食"
+        jar.setAccessibilityLabel("鱼食罐，点击抓一把鱼食")
+        jar.translatesAutoresizingMaskIntoConstraints=false
 
-        let title=NSTextField(labelWithString:"喂鱼中")
-        title.font=NSFont.systemFont(ofSize:12,weight:.semibold)
-        title.textColor=NSColor.white.withAlphaComponent(0.94)
-        let hint=NSTextField(labelWithString:"轻点水面，投一把鱼食")
-        hint.font=NSFont.systemFont(ofSize:10,weight:.regular)
-        hint.textColor=NSColor.white.withAlphaComponent(0.68)
-        let texts=NSStackView(views:[title,hint])
-        texts.orientation = .vertical
-        texts.alignment = .leading
-        texts.spacing=3
-        texts.translatesAutoresizingMaskIntoConstraints=false
+        let title=NSTextField(labelWithString:"鱼食罐")
+        title.font=NSFont.systemFont(ofSize:13,weight:.semibold)
+        title.textColor=NSColor(calibratedWhite:0.94,alpha:1)
+        title.translatesAutoresizingMaskIntoConstraints=false
+
+        let hint=NSTextField(labelWithString:"点击小罐，抓取一把鱼食")
+        hint.font=NSFont.systemFont(ofSize:11,weight:.regular)
+        hint.textColor=NSColor(calibratedRed:0.73,green:0.85,blue:0.78,alpha:1)
+        hint.translatesAutoresizingMaskIntoConstraints=false
+        hint.lineBreakMode = .byTruncatingTail
 
         let finish=NSButton(title:"完成",target:self,action:#selector(endInteractiveMode))
         finish.translatesAutoresizingMaskIntoConstraints=false
         finish.isBordered=false
+        finish.focusRingType = .none
         finish.wantsLayer=true
         finish.layer?.cornerRadius=9
         finish.layer?.backgroundColor=NSColor.white.withAlphaComponent(0.13).cgColor
@@ -667,28 +729,53 @@ final class PondApp: NSObject, NSApplicationDelegate {
             .foregroundColor:NSColor.white.withAlphaComponent(0.92),
             .font:NSFont.systemFont(ofSize:12,weight:.medium)
         ])
-        finish.keyEquivalent=""  // Esc is handled separately.
+        finish.keyEquivalent=""
         finish.toolTip="结束喂鱼（Esc）"
         finish.setAccessibilityLabel("完成喂鱼")
-        finish.setContentHuggingPriority(.required,for:.horizontal)
 
-        effect.addSubview(symbol)
-        effect.addSubview(texts)
-        effect.addSubview(finish)
+        hud.addSubview(jar)
+        hud.addSubview(title)
+        hud.addSubview(hint)
+        hud.addSubview(finish)
         NSLayoutConstraint.activate([
-            symbol.leadingAnchor.constraint(equalTo:effect.leadingAnchor,constant:15),
-            symbol.centerYAnchor.constraint(equalTo:effect.centerYAnchor),
-            symbol.widthAnchor.constraint(equalToConstant:17),
-            symbol.heightAnchor.constraint(equalToConstant:17),
-            texts.leadingAnchor.constraint(equalTo:symbol.trailingAnchor,constant:11),
-            texts.centerYAnchor.constraint(equalTo:effect.centerYAnchor),
-            texts.trailingAnchor.constraint(lessThanOrEqualTo:finish.leadingAnchor,constant:-10),
-            finish.trailingAnchor.constraint(equalTo:effect.trailingAnchor,constant:-10),
-            finish.centerYAnchor.constraint(equalTo:effect.centerYAnchor),
-            finish.widthAnchor.constraint(equalToConstant:55),
-            finish.heightAnchor.constraint(equalToConstant:28)
+            jar.leadingAnchor.constraint(equalTo:hud.leadingAnchor,constant:13),
+            jar.centerYAnchor.constraint(equalTo:hud.centerYAnchor),
+            jar.widthAnchor.constraint(equalToConstant:62),
+            jar.heightAnchor.constraint(equalToConstant:62),
+            title.leadingAnchor.constraint(equalTo:jar.trailingAnchor,constant:12),
+            title.topAnchor.constraint(equalTo:hud.topAnchor,constant:21),
+            hint.leadingAnchor.constraint(equalTo:title.leadingAnchor),
+            hint.topAnchor.constraint(equalTo:title.bottomAnchor,constant:6),
+            hint.trailingAnchor.constraint(lessThanOrEqualTo:finish.leadingAnchor,constant:-5),
+            finish.trailingAnchor.constraint(equalTo:hud.trailingAnchor,constant:-12),
+            finish.centerYAnchor.constraint(equalTo:hud.centerYAnchor),
+            finish.widthAnchor.constraint(equalToConstant:52),
+            finish.heightAnchor.constraint(equalToConstant:29)
         ])
-        return effect
+        foodJarButton=jar
+        feedingHintLabel=hint
+        return hud
+    }
+
+    @objc private func grabFood() {
+        guard interactive else { return }
+        setFoodInHand(true)
+    }
+
+    private func setFoodInHand(_ loaded:Bool) {
+        feedingArmed=loaded
+        foodJarButton?.hasFood=loaded
+        feedingHintLabel?.stringValue=loaded
+            ? "点击水面，撒下一把"
+            : "点击小罐，抓取一把鱼食"
+        (view as? PondFeedingView)?.foodReady=loaded
+    }
+
+    private func scatterFoodAt(_ point:CGPoint) {
+        guard interactive,feedingArmed else { return }
+        scene?.feed(at:point)
+        // One handful per pick-up; prevents accidental uncontrolled feeding.
+        setFoodInHand(false)
     }
 
     private func showFeedingOverlay(_ shown:Bool, completion: (() -> Void)? = nil) {
@@ -715,6 +802,7 @@ final class PondApp: NSObject, NSApplicationDelegate {
         // Feeding while paused should be an intentional resume, not a dead click.
         if value && paused { togglePause() }
         interactive=value
+        setFoodInHand(false)
         if value {
             // Deliberately temporary, above Finder only while feeding fish.
             window.level = .floating
