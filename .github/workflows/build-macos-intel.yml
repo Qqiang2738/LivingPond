@@ -71,7 +71,7 @@ jobs:
             Sources/NativeFish.swift \
             Sources/PondSoundController.swift \
             -framework AppKit -framework SpriteKit -framework CoreGraphics \
-            -framework AVFoundation -framework ServiceManagement -framework QuartzCore \
+            -framework AVFoundation -framework ServiceManagement -framework QuartzCore -framework Carbon \
             -o "$APP/Contents/MacOS/LivingPond"
           chmod 755 "$APP/Contents/MacOS/LivingPond"
           /usr/bin/codesign --force --sign - "$APP"
@@ -80,13 +80,13 @@ jobs:
           /usr/bin/file "$APP/Contents/MacOS/LivingPond"
           /usr/bin/lipo "$APP/Contents/MacOS/LivingPond" -verify_arch x86_64
           mkdir -p "$RUNNER_TEMP/dist"
-          /usr/bin/ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/dist/LivingPond-V1.1.4-Feeding-RC-macOS-Intel.zip"
-          /usr/bin/unzip -t "$RUNNER_TEMP/dist/LivingPond-V1.1.4-Feeding-RC-macOS-Intel.zip"
+          /usr/bin/ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/dist/LivingPond-V1.1.5-JarCursor-Hotkey-RC-macOS-Intel.zip"
+          /usr/bin/unzip -t "$RUNNER_TEMP/dist/LivingPond-V1.1.5-JarCursor-Hotkey-RC-macOS-Intel.zip"
 
       - name: Upload macOS app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LivingPond-V1.1.4-Feeding-RC-macOS-Intel
-          path: ${{ runner.temp }}/dist/LivingPond-V1.1.4-Feeding-RC-macOS-Intel.zip
+          name: LivingPond-V1.1.5-JarCursor-Hotkey-RC-macOS-Intel
+          path: ${{ runner.temp }}/dist/LivingPond-V1.1.5-JarCursor-Hotkey-RC-macOS-Intel.zip
           if-no-files-found: error
           retention-days: 30
