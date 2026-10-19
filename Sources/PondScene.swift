@@ -369,8 +369,8 @@ final class PondScene: SKScene {
             feedingAssignments.removeAll()
             return
         }
-        feedingAssignments=feedingAssignments.filter { _,pellet in
-            active.contains(where: { $0 === pellet })
+        feedingAssignments=feedingAssignments.filter { entry in
+            active.contains(where: { $0 === entry.value })
         }
         var available=active.filter { candidate in
             !feedingAssignments.values.contains(where: { $0 === candidate })
