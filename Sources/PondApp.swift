@@ -238,9 +238,9 @@ private final class PondFeedingView: SKView {
 
     func applyFeedingCursor() {
         guard feedingMode else { return }
-        if NSCursor.current !== PondJarCursor.cursor {
-            PondJarCursor.cursor.set()
-        }
+        // Reassert even if NSCursor.current appears unchanged: macOS can
+        // restore an arrow independently during key-window transitions.
+        PondJarCursor.cursor.set()
     }
 
     override func updateTrackingAreas() {
