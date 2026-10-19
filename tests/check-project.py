@@ -66,7 +66,9 @@ assert 'private final class FallingRainDrop' in scene
 assert 'private final class FoodPellet' in scene
 assert 'makeFeedingOverlay()' in app and 'showFeedingOverlay(false)' in app
 assert 'loginMenu=addItem(more,"登录时启动"' in app
-assert 'menuNeedsUpdate(_ menu: NSMenu)' in app
+assert 'NSPopoverDelegate' in app and 'toggleControlPopover' in app
+assert 'status?.menu = nil' in app and 'status?.menu=menu' not in app
+assert 'pop.show(relativeTo:button.bounds' in app
 assert 'refreshComparisonMenu' not in all_sources
 assert 'allowedContentTypes' in app and 'allowedFileTypes' not in app
 sel=set(re.findall(r'#selector\(([a-zA-Z_]\w*)\)',app))
