@@ -8,12 +8,14 @@ import QuartzCore
 // Restrained, opaque-on-glass controls for the nonblocking status popover.
 // Never use NSMenu tracking or a second animated window.
 private enum PondControlPalette {
-    static let text = NSColor(calibratedRed:0.92,green:0.95,blue:0.92,alpha:1)
-    static let secondary = NSColor(calibratedRed:0.62,green:0.72,blue:0.69,alpha:1)
-    static let accent = NSColor(calibratedRed:0.66,green:0.83,blue:0.74,alpha:1)
-    static let subtle = NSColor(calibratedRed:0.47,green:0.61,blue:0.57,alpha:1)
-    static let hover = NSColor(calibratedRed:0.42,green:0.62,blue:0.57,alpha:0.18)
-    static let border = NSColor(calibratedRed:0.66,green:0.80,blue:0.76,alpha:0.15)
+    // A fully opaque surface must not sample whichever app sits behind the panel.
+    static let panel = NSColor(calibratedRed:0.102,green:0.173,blue:0.174,alpha:1)
+    static let text = NSColor(calibratedRed:0.94,green:0.96,blue:0.94,alpha:1)
+    static let secondary = NSColor(calibratedRed:0.77,green:0.84,blue:0.80,alpha:1)
+    static let accent = NSColor(calibratedRed:0.77,green:0.91,blue:0.82,alpha:1)
+    static let subtle = NSColor(calibratedRed:0.68,green:0.78,blue:0.73,alpha:1)
+    static let hover = NSColor(calibratedRed:0.43,green:0.63,blue:0.57,alpha:0.18)
+    static let border = NSColor(calibratedRed:0.73,green:0.83,blue:0.77,alpha:0.19)
 }
 
 private enum PondControlAccessory {
@@ -322,6 +324,8 @@ final class PondApp: NSObject, NSApplicationDelegate {
         let pop = controlPopover ?? NSPopover()
         pop.behavior = .transient
         pop.animates = false
+        // Also keep the system-drawn arrow and chrome in a dark appearance.
+        pop.appearance = NSAppearance(named:.darkAqua)
         pop.delegate = self
         controlPopover = pop
         loginMenu?.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -334,18 +338,17 @@ final class PondApp: NSObject, NSApplicationDelegate {
         controlPage=page
         let width:CGFloat=304
         let rowWidth:CGFloat=width-32
-        let background=NSVisualEffectView(frame:NSRect(x:0,y:0,width:width,height:1))
-        background.material = .hudWindow
-        background.blendingMode = .behindWindow
-        background.state = .active
+        // NSVisualEffectView's behindWindow blending allowed white web pages
+        // and bright editor windows to wash out the entire control palette.
+        // A plain layer-backed NSView is intentionally fully opaque.
+        let background=NSView(frame:NSRect(x:0,y:0,width:width,height:1))
         background.appearance=NSAppearance(named:.darkAqua)
         background.wantsLayer=true
-        background.layer?.backgroundColor=NSColor(calibratedRed:0.075,green:0.16,
-                                                   blue:0.165,alpha:0.94).cgColor
+        background.layer?.backgroundColor=PondControlPalette.panel.cgColor
         background.layer?.cornerRadius=16
         background.layer?.masksToBounds=true
         background.layer?.borderColor=PondControlPalette.border.cgColor
-        background.layer?.borderWidth=0.6
+        background.layer?.borderWidth=0.8
 
         let stack=NSStackView()
         stack.orientation = .vertical
