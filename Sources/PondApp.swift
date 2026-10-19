@@ -5,6 +5,150 @@ import UniformTypeIdentifiers
 import ServiceManagement
 import QuartzCore
 
+// Restrained, opaque-on-glass controls for the nonblocking status popover.
+// Never use NSMenu tracking or a second animated window.
+private enum PondControlPalette {
+    // A fully opaque surface must not sample whichever app sits behind the panel.
+    static let panel = NSColor(calibratedRed:0.102,green:0.173,blue:0.174,alpha:1)
+    static let text = NSColor(calibratedRed:0.94,green:0.96,blue:0.94,alpha:1)
+    static let secondary = NSColor(calibratedRed:0.77,green:0.84,blue:0.80,alpha:1)
+    static let accent = NSColor(calibratedRed:0.77,green:0.91,blue:0.82,alpha:1)
+    static let subtle = NSColor(calibratedRed:0.68,green:0.78,blue:0.73,alpha:1)
+    static let hover = NSColor(calibratedRed:0.43,green:0.63,blue:0.57,alpha:0.18)
+    static let border = NSColor(calibratedRed:0.73,green:0.83,blue:0.77,alpha:0.19)
+}
+
+private enum PondControlAccessory {
+    case none
+    case chevron
+    case action(String)
+    case toggle(Bool)
+}
+
+private final class PondControlRow: NSButton {
+    private var hoverArea: NSTrackingArea?
+
+    init(label:String, icon:String, code:Int, accessory:PondControlAccessory = .none,
+         quiet:Bool = false, target:AnyObject, action:Selector) {
+        super.init(frame:.zero)
+        self.tag=code
+        self.target=target
+        self.action=action
+        self.title=""
+        self.isBordered=false
+        self.focusRingType = .none
+        self.wantsLayer=true
+        self.layer?.cornerRadius=10
+        self.layer?.backgroundColor=NSColor.clear.cgColor
+        self.setAccessibilityLabel(label)
+
+        let pictogram=NSImageView()
+        pictogram.image=NSImage(systemSymbolName:icon, accessibilityDescription:nil)
+        pictogram.contentTintColor=quiet ? PondControlPalette.subtle : PondControlPalette.accent
+        pictogram.imageScaling = .scaleProportionallyDown
+        pictogram.translatesAutoresizingMaskIntoConstraints=false
+        addSubview(pictogram)
+
+        let name=NSTextField(labelWithString:label)
+        name.font=NSFont.systemFont(ofSize:quiet ? 12.5 : 13.5,
+                                    weight:quiet ? .regular : .medium)
+        name.textColor=quiet ? PondControlPalette.secondary : PondControlPalette.text
+        name.lineBreakMode = .byTruncatingTail
+        name.translatesAutoresizingMaskIntoConstraints=false
+        addSubview(name)
+
+        NSLayoutConstraint.activate([
+            pictogram.leadingAnchor.constraint(equalTo:leadingAnchor,constant:12),
+            pictogram.centerYAnchor.constraint(equalTo:centerYAnchor),
+            pictogram.widthAnchor.constraint(equalToConstant:17),
+            pictogram.heightAnchor.constraint(equalToConstant:17),
+            name.leadingAnchor.constraint(equalTo:pictogram.trailingAnchor,constant:11),
+            name.centerYAnchor.constraint(equalTo:centerYAnchor)
+        ])
+
+        var right:NSView?
+        switch accessory {
+        case .none:
+            break
+        case .chevron:
+            let image=NSImageView()
+            image.image=NSImage(systemSymbolName:"chevron.right",accessibilityDescription:nil)
+            image.contentTintColor=PondControlPalette.secondary
+            image.translatesAutoresizingMaskIntoConstraints=false
+            addSubview(image)
+            NSLayoutConstraint.activate([
+                image.widthAnchor.constraint(equalToConstant:9),
+                image.heightAnchor.constraint(equalToConstant:12)
+            ])
+            right=image
+        case .action(let caption):
+            let value=NSTextField(labelWithString:caption)
+            value.font=NSFont.systemFont(ofSize:11.5,weight:.medium)
+            value.textColor=PondControlPalette.accent
+            value.translatesAutoresizingMaskIntoConstraints=false
+            addSubview(value)
+            right=value
+        case .toggle(let on):
+            let track=NSView()
+            track.wantsLayer=true
+            track.layer?.backgroundColor=(on
+                 ? PondControlPalette.accent
+                 : NSColor(calibratedRed:0.39,green:0.47,blue:0.46,alpha:1)).cgColor
+            track.layer?.cornerRadius=10
+            track.translatesAutoresizingMaskIntoConstraints=false
+            let knob=NSView()
+            knob.wantsLayer=true
+            knob.layer?.backgroundColor=(on
+                 ? NSColor(calibratedRed:0.12,green:0.25,blue:0.22,alpha:1)
+                 : NSColor(calibratedWhite:0.87,alpha:1)).cgColor
+            knob.layer?.cornerRadius=7
+            knob.translatesAutoresizingMaskIntoConstraints=false
+            track.addSubview(knob)
+            addSubview(track)
+            NSLayoutConstraint.activate([
+                track.widthAnchor.constraint(equalToConstant:34),
+                track.heightAnchor.constraint(equalToConstant:20),
+                knob.widthAnchor.constraint(equalToConstant:14),
+                knob.heightAnchor.constraint(equalToConstant:14),
+                knob.centerYAnchor.constraint(equalTo:track.centerYAnchor)
+            ])
+            if on {
+                knob.trailingAnchor.constraint(equalTo:track.trailingAnchor,constant:-3).isActive=true
+            } else {
+                knob.leadingAnchor.constraint(equalTo:track.leadingAnchor,constant:3).isActive=true
+            }
+            setAccessibilityLabel(label + (on ? "，已开启" : "，已关闭"))
+            right=track
+        }
+        if let trailing=right {
+            NSLayoutConstraint.activate([
+                trailing.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-13),
+                trailing.centerYAnchor.constraint(equalTo:centerYAnchor),
+                name.trailingAnchor.constraint(lessThanOrEqualTo:trailing.leadingAnchor,constant:-8)
+            ])
+        } else {
+            name.trailingAnchor.constraint(lessThanOrEqualTo:trailingAnchor,constant:-12).isActive=true
+        }
+    }
+
+    required init?(coder:NSCoder) { fatalError("Use init(label:icon:code:accessory:quiet:target:action:)") }
+
+    override func updateTrackingAreas() {
+        if let old=hoverArea { removeTrackingArea(old) }
+        let area=NSTrackingArea(rect:.zero,options:[.mouseEnteredAndExited,.activeAlways,.inVisibleRect],
+                                owner:self,userInfo:nil)
+        addTrackingArea(area)
+        hoverArea=area
+        super.updateTrackingAreas()
+    }
+    override func mouseEntered(with event:NSEvent) {
+        layer?.backgroundColor=PondControlPalette.hover.cgColor
+    }
+    override func mouseExited(with event:NSEvent) {
+        layer?.backgroundColor=NSColor.clear.cgColor
+    }
+}
+
 final class PondDesktopWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -17,6 +161,12 @@ final class PondApp: NSObject, NSApplicationDelegate {
     private var view: SKView?
     private var scene: PondScene?
     private var status: NSStatusItem?
+    // Keep NSMenuItems as lightweight state holders, but never attach an NSMenu
+    // to the status item. Native menu tracking interrupts the pond render loop.
+    private var menuState: NSMenu?
+    private var controlPopover: NSPopover?
+    private enum ControlPage { case home, settings, audio, diagnostics }
+    private var controlPage: ControlPage = .home
     private var interactionMenu: NSMenuItem?
     private var pauseMenu: NSMenuItem?
     private var rainMenu: NSMenuItem?
@@ -101,7 +251,6 @@ final class PondApp: NSObject, NSApplicationDelegate {
             button.toolTip="一池清宁 · 喂鱼、听雨"
         }
         let menu=NSMenu(title:"一池清宁")
-        menu.delegate = self
         let heading=addItem(menu,"一池清宁",nil)
         heading.isEnabled=false
         menu.addItem(.separator())
@@ -155,7 +304,266 @@ final class PondApp: NSObject, NSApplicationDelegate {
         menu.setSubmenu(more,for:moreParent)
         menu.addItem(.separator())
         _=addItem(menu,"退出一池清宁",#selector(quitApp))
-        status?.menu=menu
+        menuState = menu
+        // Clicking the menu-bar icon shows a non-modal AppKit popover instead.
+        // In particular: never set status.menu, which enters menu-tracking mode.
+        status?.menu = nil
+        status?.button?.target = self
+        status?.button?.action = #selector(toggleControlPopover)
+    }
+
+    /// The control surface is a transient NSViewController, not an NSMenu.
+    /// Status-menu tracking can starve a continuously rendering SpriteKit scene;
+    /// a non-modal popover leaves the ordinary app run loop in charge.
+    @objc private func toggleControlPopover() {
+        if let existing = controlPopover, existing.isShown {
+            existing.performClose(nil)
+            return
+        }
+        guard let button = status?.button else { return }
+        let pop = controlPopover ?? NSPopover()
+        pop.behavior = .transient
+        pop.animates = false
+        // Also keep the system-drawn arrow and chrome in a dark appearance.
+        pop.appearance = NSAppearance(named:.darkAqua)
+        pop.delegate = self
+        controlPopover = pop
+        loginMenu?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        showControlPage(.home)
+        // Do not force activation of the fullscreen desktop window.
+        pop.show(relativeTo:button.bounds, of:button, preferredEdge:.minY)
+    }
+
+    private func showControlPage(_ page:ControlPage) {
+        controlPage=page
+        let width:CGFloat=304
+        let rowWidth:CGFloat=width-32
+        // NSVisualEffectView's behindWindow blending allowed white web pages
+        // and bright editor windows to wash out the entire control palette.
+        // A plain layer-backed NSView is intentionally fully opaque.
+        let background=NSView(frame:NSRect(x:0,y:0,width:width,height:1))
+        background.appearance=NSAppearance(named:.darkAqua)
+        background.wantsLayer=true
+        background.layer?.backgroundColor=PondControlPalette.panel.cgColor
+        background.layer?.cornerRadius=16
+        background.layer?.masksToBounds=true
+        background.layer?.borderColor=PondControlPalette.border.cgColor
+        background.layer?.borderWidth=0.8
+
+        let stack=NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing=0
+        stack.translatesAutoresizingMaskIntoConstraints=false
+        background.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo:background.leadingAnchor,constant:16),
+            stack.trailingAnchor.constraint(equalTo:background.trailingAnchor,constant:-16),
+            stack.topAnchor.constraint(equalTo:background.topAnchor,constant:15)
+        ])
+        var contentHeight:CGFloat=0
+
+        func space(_ pts:CGFloat) {
+            let v=NSView()
+            v.translatesAutoresizingMaskIntoConstraints=false
+            v.heightAnchor.constraint(equalToConstant:pts).isActive=true
+            stack.addArrangedSubview(v)
+            contentHeight += pts
+        }
+        func divider() {
+            let line=NSView()
+            line.wantsLayer=true
+            line.layer?.backgroundColor=PondControlPalette.border.cgColor
+            line.translatesAutoresizingMaskIntoConstraints=false
+            NSLayoutConstraint.activate([
+                line.widthAnchor.constraint(equalToConstant:rowWidth),
+                line.heightAnchor.constraint(equalToConstant:1)
+            ])
+            stack.addArrangedSubview(line)
+            contentHeight += 1
+        }
+        func row(_ label:String,_ icon:String,_ code:Int,_ accessory:PondControlAccessory = .none,
+                 quiet:Bool=false,height:CGFloat=42) {
+            let button=PondControlRow(label:label,icon:icon,code:code,accessory:accessory,
+                                      quiet:quiet,target:self,action:#selector(controlAction(_:)))
+            button.translatesAutoresizingMaskIntoConstraints=false
+            NSLayoutConstraint.activate([
+                button.widthAnchor.constraint(equalToConstant:rowWidth),
+                button.heightAnchor.constraint(equalToConstant:height)
+            ])
+            stack.addArrangedSubview(button)
+            contentHeight += height
+        }
+        func heading(_ text:String, hasBack:Bool) {
+            let container=NSView()
+            container.translatesAutoresizingMaskIntoConstraints=false
+            let title=NSTextField(labelWithString:text)
+            title.font=NSFont.systemFont(ofSize:15.5,weight:.semibold)
+            title.textColor=PondControlPalette.text
+            title.translatesAutoresizingMaskIntoConstraints=false
+            container.addSubview(title)
+            NSLayoutConstraint.activate([
+                container.widthAnchor.constraint(equalToConstant:rowWidth),
+                container.heightAnchor.constraint(equalToConstant:32),
+                title.centerYAnchor.constraint(equalTo:container.centerYAnchor)
+            ])
+            if hasBack {
+                let back=NSButton(title:"",target:self,action:#selector(controlAction(_:)))
+                back.tag=91
+                back.isBordered=false
+                back.focusRingType = .none
+                back.image=NSImage(systemSymbolName:"chevron.left",accessibilityDescription:"返回")
+                back.contentTintColor=PondControlPalette.accent
+                back.setAccessibilityLabel("返回更多设置")
+                back.translatesAutoresizingMaskIntoConstraints=false
+                container.addSubview(back)
+                NSLayoutConstraint.activate([
+                    back.leadingAnchor.constraint(equalTo:container.leadingAnchor,constant:0),
+                    back.centerYAnchor.constraint(equalTo:container.centerYAnchor),
+                    back.widthAnchor.constraint(equalToConstant:26),
+                    back.heightAnchor.constraint(equalToConstant:28),
+                    title.leadingAnchor.constraint(equalTo:back.trailingAnchor,constant:6)
+                ])
+                if page == .settings { back.tag=90; back.setAccessibilityLabel("返回") }
+            } else {
+                let icon=NSImageView()
+                icon.image=NSImage(systemSymbolName:"fish.fill",accessibilityDescription:nil)
+                icon.contentTintColor=PondControlPalette.accent
+                icon.translatesAutoresizingMaskIntoConstraints=false
+                container.addSubview(icon)
+                NSLayoutConstraint.activate([
+                    icon.leadingAnchor.constraint(equalTo:container.leadingAnchor,constant:8),
+                    icon.centerYAnchor.constraint(equalTo:container.centerYAnchor),
+                    icon.widthAnchor.constraint(equalToConstant:18),
+                    icon.heightAnchor.constraint(equalToConstant:18),
+                    title.leadingAnchor.constraint(equalTo:icon.trailingAnchor,constant:10)
+                ])
+            }
+            stack.addArrangedSubview(container)
+            contentHeight += 32
+        }
+        switch page {
+        case .home:
+            heading("一池清宁",hasBack:false)
+            space(10); divider(); space(8)
+            row(interactive ? "结束喂鱼" : "喂鱼","hand.tap.fill",1,.action(interactive ? "完成" : "开始"))
+            row(paused ? "继续鱼塘" : "暂停鱼塘",paused ? "play.fill" : "pause.fill",2)
+            row("细雨涟漪","cloud.drizzle.fill",3,.toggle(rain))
+            row("细雨声",soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",4,.toggle(soundEnabled))
+            space(9); divider(); space(5)
+            row("更多设置","slider.horizontal.3",10,.chevron,quiet:true)
+            row("退出一池清宁","power",5,quiet:true,height:38)
+        case .settings:
+            heading("更多设置",hasBack:true)
+            space(10); divider(); space(8)
+            row("声音选项","speaker.wave.2",11,.chevron)
+            row("登录时启动","arrow.clockwise",6,.toggle(SMAppService.mainApp.status == .enabled))
+            row("省电模式 · 30 FPS","leaf",7,.toggle(lowPower))
+            row("诊断与日志","chart.xyaxis.line",12,.chevron)
+            space(8); divider(); space(6)
+            row("关于一池清宁","info.circle",15,quiet:true,height:38)
+        case .audio:
+            heading("声音选项",hasBack:true)
+            space(10); divider(); space(12)
+            let caption=NSTextField(labelWithString:"细雨音量")
+            caption.font=NSFont.systemFont(ofSize:11.5,weight:.medium)
+            caption.textColor=PondControlPalette.secondary
+            caption.translatesAutoresizingMaskIntoConstraints=false
+            caption.heightAnchor.constraint(equalToConstant:20).isActive=true
+            stack.addArrangedSubview(caption)
+            contentHeight += 20
+            space(5)
+            let levels=NSStackView()
+            levels.orientation = .horizontal
+            levels.spacing=5
+            levels.alignment = .centerY
+            levels.distribution = .fillEqually
+            levels.translatesAutoresizingMaskIntoConstraints=false
+            let volume=Int((sound.volume*100).rounded())
+            for pct in [15,30,50,70,100] {
+                let chosen=pct == volume
+                let chip=NSButton(title:"\(pct)%",target:self,action:#selector(controlAction(_:)))
+                chip.tag=1000+pct
+                chip.isBordered=false
+                chip.focusRingType = .none
+                chip.wantsLayer=true
+                chip.layer?.cornerRadius=8
+                chip.layer?.backgroundColor=(chosen
+                    ? NSColor(calibratedRed:0.37,green:0.58,blue:0.48,alpha:0.45)
+                    : NSColor(calibratedWhite:1,alpha:0.07)).cgColor
+                chip.attributedTitle=NSAttributedString(string:"\(pct)%",attributes:[
+                    .font:NSFont.systemFont(ofSize:11.5,weight:chosen ? .semibold : .medium),
+                    .foregroundColor:chosen ? PondControlPalette.text : PondControlPalette.secondary
+                ])
+                chip.setAccessibilityLabel("雨声音量 \(pct)%")
+                chip.translatesAutoresizingMaskIntoConstraints=false
+                chip.heightAnchor.constraint(equalToConstant:34).isActive=true
+                levels.addArrangedSubview(chip)
+            }
+            NSLayoutConstraint.activate([
+                levels.widthAnchor.constraint(equalToConstant:rowWidth),
+                levels.heightAnchor.constraint(equalToConstant:34)
+            ])
+            stack.addArrangedSubview(levels)
+            contentHeight += 34
+            space(12); divider(); space(6)
+            row("导入自己的雨声","square.and.arrow.down",8,.chevron)
+            row("恢复内置雨声","arrow.uturn.backward",9)
+            row("检查播放状态","waveform",13,quiet:true)
+        case .diagnostics:
+            heading("诊断与日志",hasBack:true)
+            space(10); divider(); space(8)
+            row("画面性能","speedometer",14,.chevron)
+            row("重新开始性能采样","arrow.counterclockwise",16)
+            row(stabilityActive ? "停止稳定性记录" : "开始 30 分钟记录","clock",17)
+            row("查看稳定性日志","doc.text.magnifyingglass",18,.chevron)
+        }
+
+        let height:CGFloat=contentHeight+30
+        background.setFrameSize(NSSize(width:width,height:height))
+        let controller=NSViewController()
+        controller.view=background
+        controller.preferredContentSize=background.frame.size
+        controlPopover?.contentViewController=controller
+        controlPopover?.contentSize=background.frame.size
+    }
+
+    /// Keep switches and volume controls in place; only dismiss when leaving
+    /// the control surface for a modal task or for desktop feeding.
+    @objc private func controlAction(_ sender:NSButton) {
+        switch sender.tag {
+        case 10: showControlPage(.settings); return
+        case 11: showControlPage(.audio); return
+        case 12: showControlPage(.diagnostics); return
+        case 90: showControlPage(.home); return
+        case 91: showControlPage(.settings); return
+        case 2: togglePause(); showControlPage(.home); return
+        case 3: toggleRain(); showControlPage(.home); return
+        case 4: toggleSound(); showControlPage(.home); return
+        case 7: toggleLowPower(); showControlPage(.settings); return
+        case 1015,1030,1050,1070,1100:
+            let selection=NSMenuItem(title:"",action:nil,keyEquivalent:"")
+            selection.tag=sender.tag-1000
+            changeVolume(selection)
+            showControlPage(.audio)
+            return
+        default: break
+        }
+        controlPopover?.performClose(nil)
+        switch sender.tag {
+        case 1: toggleInteractive()
+        case 5: quitApp()
+        case 6: toggleLaunchAtLogin()
+        case 8: importSound()
+        case 9: useBundledSound()
+        case 13: showAudioStatus()
+        case 14: showPerformance()
+        case 15: showAbout()
+        case 16: resetPerformance()
+        case 17: toggleStabilityMonitoring()
+        case 18: openStabilityLog()
+        default: break
+        }
     }
 
     private func refreshVolumeMenu() {
@@ -589,9 +997,10 @@ final class PondApp: NSObject, NSApplicationDelegate {
     }
 }
 
-// Sync login status from macOS, including changes made in System Settings.
-extension PondApp: NSMenuDelegate {
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        loginMenu?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+// The popover disappears when the user clicks outside, including on the pond.
+// The clock reset is defensive only; avoiding NSMenu tracking is the real change.
+extension PondApp: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        scene?.resetFrameClock()
     }
 }
