@@ -150,65 +150,128 @@ private final class PondControlRow: NSButton {
     }
 }
 
-/// A vector-backed, small glazed-ceramic jar for direct feeding. Drawn once,
-/// not rebuilt each frame; the cursor hotspot sits at the falling grains.
+/// A hand-shaped, lightly glazed ceramic jar. Clear silhouette at native cursor
+/// size; a few falling grains express pouring without an illustration of a hand.
+/// The canvas size and click hotspot are intentionally unchanged from V1.1.5.1.
 private enum PondJarCursor {
     static let cursor: NSCursor = {
         let image=NSImage(size:NSSize(width:52,height:58),flipped:false) { _ in
-            let shadow=NSBezierPath(ovalIn:NSRect(x:10,y:5,width:31,height:9))
-            NSColor(calibratedRed:0.03,green:0.10,blue:0.09,alpha:0.33).setFill()
+            // A short soft contact shadow separates the jar from pale desktops.
+            let shadow=NSBezierPath(ovalIn:NSRect(x:9,y:5,width:32,height:8))
+            NSColor(calibratedRed:0.11,green:0.16,blue:0.13,alpha:0.23).setFill()
             shadow.fill()
 
             NSGraphicsContext.saveGraphicsState()
-            let transform=NSAffineTransform()
-            transform.translateX(by:24,yBy:29)
-            transform.rotate(byDegrees:-26)
-            transform.translateX(by:-24,yBy:-29)
-            transform.concat()
+            let tilt=NSAffineTransform()
+            tilt.translateX(by:24,yBy:29)
+            tilt.rotate(byDegrees:-26)
+            tilt.translateX(by:-24,yBy:-29)
+            tilt.concat()
 
-            let body=NSBezierPath(roundedRect:NSRect(x:13,y:13,width:25,height:30),
-                                  xRadius:7,yRadius:7)
-            NSColor(calibratedRed:0.62,green:0.48,blue:0.32,alpha:1).setFill()
-            body.fill()
-            NSColor(calibratedRed:0.29,green:0.31,blue:0.23,alpha:0.94).setStroke()
-            body.lineWidth=1.1
-            body.stroke()
+            // Hand-thrown pottery: a tapered foot, full belly and narrow shoulder.
+            // The outline is deliberately strong enough for white browser windows.
+            let vessel=NSBezierPath()
+            vessel.move(to:NSPoint(x:19,y:13))
+            vessel.curve(to:NSPoint(x:14,y:24),
+                         controlPoint1:NSPoint(x:14,y:15),
+                         controlPoint2:NSPoint(x:13,y:20))
+            vessel.curve(to:NSPoint(x:17,y:36),
+                         controlPoint1:NSPoint(x:14,y:31),
+                         controlPoint2:NSPoint(x:15,y:34))
+            vessel.curve(to:NSPoint(x:33,y:36),
+                         controlPoint1:NSPoint(x:21,y:38),
+                         controlPoint2:NSPoint(x:29,y:38))
+            vessel.curve(to:NSPoint(x:37,y:23),
+                         controlPoint1:NSPoint(x:37,y:33),
+                         controlPoint2:NSPoint(x:39,y:28))
+            vessel.curve(to:NSPoint(x:32,y:13),
+                         controlPoint1:NSPoint(x:36,y:18),
+                         controlPoint2:NSPoint(x:35,y:14))
+            vessel.curve(to:NSPoint(x:19,y:13),
+                         controlPoint1:NSPoint(x:28,y:11.8),
+                         controlPoint2:NSPoint(x:22,y:12))
+            vessel.close()
+            NSColor(calibratedRed:0.72,green:0.59,blue:0.42,alpha:1).setFill()
+            vessel.fill()
+            NSColor(calibratedRed:0.28,green:0.26,blue:0.20,alpha:1).setStroke()
+            vessel.lineWidth=1.35
+            vessel.stroke()
 
-            let glaze=NSBezierPath(roundedRect:NSRect(x:15.4,y:15.5,width:7,height:23),
-                                   xRadius:3,yRadius:3)
-            NSColor(calibratedRed:0.91,green:0.78,blue:0.54,alpha:0.42).setFill()
-            glaze.fill()
+            // One broad light catch and one shaded edge suggest glazed ceramic,
+            // rather than adding photo-realistic texture or heavy decoration.
+            let light=NSBezierPath()
+            light.move(to:NSPoint(x:19,y:33))
+            light.curve(to:NSPoint(x:18,y:18),
+                         controlPoint1:NSPoint(x:16,y:28),
+                         controlPoint2:NSPoint(x:17,y:23))
+            NSColor(calibratedRed:0.97,green:0.88,blue:0.67,alpha:0.65).setStroke()
+            light.lineWidth=3.2
+            light.lineCapStyle = .round
+            light.stroke()
 
-            let label=NSBezierPath(roundedRect:NSRect(x:17,y:20,width:16.5,height:14),
-                                   xRadius:3,yRadius:3)
-            NSColor(calibratedRed:0.88,green:0.78,blue:0.59,alpha:1).setFill()
-            label.fill()
+            let sideShade=NSBezierPath()
+            sideShade.move(to:NSPoint(x:33,y:32))
+            sideShade.curve(to:NSPoint(x:32,y:16),
+                            controlPoint1:NSPoint(x:38,y:26),
+                            controlPoint2:NSPoint(x:36,y:19))
+            NSColor(calibratedRed:0.37,green:0.39,blue:0.31,alpha:0.29).setStroke()
+            sideShade.lineWidth=3.0
+            sideShade.lineCapStyle = .round
+            sideShade.stroke()
+
+            // Restrained celadon slip and a single curved pond-water engraving.
+            let slip=NSBezierPath()
+            slip.move(to:NSPoint(x:16,y:33))
+            slip.curve(to:NSPoint(x:35,y:33),
+                       controlPoint1:NSPoint(x:22,y:36),
+                       controlPoint2:NSPoint(x:30,y:36))
+            NSColor(calibratedRed:0.36,green:0.54,blue:0.45,alpha:0.92).setStroke()
+            slip.lineWidth=3.0
+            slip.stroke()
+
             let wave=NSBezierPath()
-            wave.move(to:NSPoint(x:19,y:26))
-            wave.curve(to:NSPoint(x:32,y:26),
-                       controlPoint1:NSPoint(x:23,y:31),
-                       controlPoint2:NSPoint(x:27,y:22))
-            NSColor(calibratedRed:0.29,green:0.46,blue:0.38,alpha:0.95).setStroke()
-            wave.lineWidth=1.5
+            wave.move(to:NSPoint(x:20,y:24))
+            wave.curve(to:NSPoint(x:32,y:25),
+                       controlPoint1:NSPoint(x:24,y:29),
+                       controlPoint2:NSPoint(x:27,y:21))
+            NSColor(calibratedRed:0.29,green:0.44,blue:0.39,alpha:0.94).setStroke()
+            wave.lineWidth=1.45
+            wave.lineCapStyle = .round
             wave.stroke()
 
-            let rim=NSBezierPath(roundedRect:NSRect(x:11.5,y:38,width:28,height:7.5),
-                                 xRadius:3,yRadius:3)
-            NSColor(calibratedRed:0.84,green:0.70,blue:0.47,alpha:1).setFill()
-            rim.fill()
-            NSColor(calibratedRed:0.35,green:0.35,blue:0.25,alpha:0.75).setStroke()
-            rim.lineWidth=0.8
-            rim.stroke()
+            // A real open mouth: luminous outer rim and dark inner food surface.
+            let neck=NSBezierPath(roundedRect:NSRect(x:17,y:36,width:17,height:7),
+                                  xRadius:2.5,yRadius:2.5)
+            NSColor(calibratedRed:0.79,green:0.64,blue:0.45,alpha:1).setFill()
+            neck.fill()
+            let lip=NSBezierPath(ovalIn:NSRect(x:15.0,y:39.5,width:21.0,height:7.4))
+            NSColor(calibratedRed:0.89,green:0.75,blue:0.54,alpha:1).setFill()
+            lip.fill()
+            NSColor(calibratedRed:0.35,green:0.30,blue:0.23,alpha:0.95).setStroke()
+            lip.lineWidth=1.0
+            lip.stroke()
+            let opening=NSBezierPath(ovalIn:NSRect(x:17.7,y:41.4,width:15.6,height:3.6))
+            NSColor(calibratedRed:0.39,green:0.29,blue:0.19,alpha:1).setFill()
+            opening.fill()
+            let innerFood=NSBezierPath(ovalIn:NSRect(x:20.7,y:42.1,width:8.9,height:1.6))
+            NSColor(calibratedRed:0.82,green:0.65,blue:0.40,alpha:0.92).setFill()
+            innerFood.fill()
 
-            // The direct-target marker is deliberately subtle, not a crosshair.
-            let grains:[(CGFloat,CGFloat,CGFloat)]=[
-                (40,13,3.8),(44,9,3.1),(48,5,2.8)
-            ]
             NSGraphicsContext.restoreGraphicsState()
+
+            // A short descending trail ending exactly at the established
+            // pointer hotspot (47,52 in cursor/image coordinates). Do not
+            // move that hotspot: the fish food must land where the user clicks.
+            let grains:[(CGFloat,CGFloat,CGFloat)]=[
+                (39.0,28.0,2.1),
+                (41.0,21.0,3.3),
+                (44.0,14.0,2.8),
+                (48.0,5.0,2.8)
+            ]
             for (x,y,r) in grains {
-                let pellet=NSBezierPath(ovalIn:NSRect(x:x-r/2,y:y-r/2,width:r,height:r))
-                NSColor(calibratedRed:0.95,green:0.78,blue:0.47,alpha:1).setFill()
-                pellet.fill()
+                let dot=NSBezierPath(ovalIn:NSRect(x:x-r/2,y:y-r/2,width:r,height:r))
+                NSColor(calibratedRed:0.98,green:0.78,blue:0.45,alpha:1).setFill()
+                dot.fill()
             }
             return true
         }
