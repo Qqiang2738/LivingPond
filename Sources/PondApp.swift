@@ -1070,7 +1070,7 @@ final class PondApp: NSObject, NSApplicationDelegate {
         guard let scene=scene else { return }
         let report=scene.diagnostic(mode: interactive ? "互动浮层" : "Finder 桌面（图标下方）",preferredFPS:view?.preferredFramesPerSecond ?? 60)
         let alert=NSAlert()
-        alert.messageText="原生鱼塘性能 · V1.1.4 RC"
+        alert.messageText="原生鱼塘性能 · V1.1.5.2 RC"
         alert.informativeText=report
         alert.addButton(withTitle:"复制报告")
         alert.addButton(withTitle:"关闭")
@@ -1105,7 +1105,7 @@ final class PondApp: NSObject, NSApplicationDelegate {
             stabilityActive = true
             stabilitySamplesWritten = 0
             scene?.frameMeter.reset()
-            appendStabilityLog("[开始] Living Pond V1.1.4 RC | 目标 30 分钟 | 采样间隔 60 秒")
+            appendStabilityLog("[开始] Living Pond V1.1.5.2 RC | 目标 30 分钟 | 采样间隔 60 秒")
             appendStabilityLog("[设备] \(ProcessInfo.processInfo.operatingSystemVersionString) | 目标帧率 \(view?.preferredFramesPerSecond ?? 60)")
             appendStabilityLog("[初始环境] 池水=静态 | 细雨画面=\(rain ? "开" : "关") | 窗口=\(interactive ? "互动" : "Finder桌面")")
             stabilityMenu?.title="停止稳定性记录（\(stabilitySamplesWritten)/30）"
@@ -1205,7 +1205,7 @@ final class PondApp: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showAbout() {
-        presentAlert(title:"一池清宁 · V1.1.4 RC",
+        presentAlert(title:"一池清宁 · V1.1.5.2 RC",
                      message:"静水、锦鲤与细雨。\n\n11 条锦鲤 · 原生 SpriteKit\n菜单栏轻轻控制，桌面图标照常使用。")
     }
     @objc private func quitApp() { NSApp.terminate(nil) }
