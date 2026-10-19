@@ -116,7 +116,7 @@ private final class FallingRainDrop {
 /// feeding point, floats briefly, and vanishes as nearby koi approach.
 private final class FoodPellet {
     let node: SKShapeNode
-    private let anchor: CGPoint
+    let anchor: CGPoint
     private let phase: CGFloat
     private let entry: TimeInterval
     private let lifetime: TimeInterval
@@ -124,8 +124,8 @@ private final class FoodPellet {
     private(set) var consumed = false
 
     init(at target: CGPoint) {
-        anchor = CGPoint(x: target.x + CGFloat.random(in:-18...18),
-                         y: target.y + CGFloat.random(in:-12...12))
+        anchor = CGPoint(x: target.x + CGFloat.random(in:-31...31),
+                         y: target.y + CGFloat.random(in:-21...21))
         phase = CGFloat.random(in:0...(2 * CGFloat.pi))
         entry = Double.random(in:0.16...0.32)
         lifetime = Double.random(in:3.2...4.8)
@@ -164,8 +164,12 @@ private final class FoodPellet {
 final class PondScene: SKScene {
     let frameMeter = NativeFrameMeter()
     var onFeeding: (() -> Void)?
+    // The native feeding HUD decides whether the hand has food.
+    // A click on water must not automatically create pellets.
+    var onSurfaceClick: ((CGPoint) -> Void)?
 
     private var fish: [NativeFish] = []
+    private var feedingAssignments: [Int:FoodPellet] = [:]
     private var ripples: [CircleRipple] = []
     private var fallingDrops: [FallingRainDrop] = []
     private var foodPellets: [FoodPellet] = []
@@ -332,22 +336,62 @@ final class PondScene: SKScene {
     func setLowPower(_ value: Bool) { lowPowerEnabled=value }
     func feedAtCenter() { feed(at:CGPoint(x:size.width*0.5,y:size.height*0.52)) }
     func feed(at point:CGPoint) {
-        // Visible food grains survive on the water surface long enough to
-        // watch koi approach. Old pellets are bounded across repeated clicks.
-        while foodPellets.count > 36 {
-            foodPellets.removeFirst().node.removeFromParent()
+        // A handful is scattered across the actual clicked location.
+        // Keep a hard particle bound even after very rapid repeated feeding.
+        while foodPellets.count > 30 {
+            let old=foodPellets.removeFirst()
+            old.node.removeFromParent()
         }
-        for _ in 0..<9 {
-            let pellet = FoodPellet(at:point)
+        for _ in 0..<13 {
+            let pellet=FoodPellet(at:point)
             activity.addChild(pellet.node)
             foodPellets.append(pellet)
         }
         foodLocation=point
-        foodRemaining=4.0
+        foodRemaining=5.0
+        // Each koi pursues a specific grain, not the same shared coordinate.
+        feedingAssignments.removeAll()
+        refreshFeedingAssignments()
         addRipple(at:point,large:true)
         onFeeding?()
     }
-    override func mouseDown(with event:NSEvent) { feed(at:event.location(in:self)) }
+
+    override func mouseDown(with event:NSEvent) {
+        onSurfaceClick?(event.location(in:self))
+    }
+
+    /// Called only while a feeding session has living grain particles.
+    /// Assign nearest unclaimed grains to the closest fish first; each
+    /// consumed grain releases its assignment and the next one can be chosen.
+    private func refreshFeedingAssignments() {
+        let active=foodPellets.filter { !$0.consumed && $0.age < 4.8 }
+        if active.isEmpty {
+            feedingAssignments.removeAll()
+            return
+        }
+        feedingAssignments=feedingAssignments.filter { _,pellet in
+            active.contains(where: { $0 === pellet })
+        }
+        var available=active.filter { candidate in
+            !feedingAssignments.values.contains(where: { $0 === candidate })
+        }
+        let ordered=fish.sorted {
+            let origin=foodLocation ?? CGPoint(x:size.width/2,y:size.height/2)
+            let dx0=$0.position.x-origin.x,dy0=$0.position.y-origin.y
+            let dx1=$1.position.x-origin.x,dy1=$1.position.y-origin.y
+            return dx0*dx0+dy0*dy0 < dx1*dx1+dy1*dy1
+        }
+        for koi in ordered where feedingAssignments[koi.identity] == nil {
+            guard !available.isEmpty else { break }
+            let bestIndex=available.indices.min { a,b in
+                let p0=available[a].anchor,p1=available[b].anchor
+                let dx0=p0.x-koi.position.x,dy0=p0.y-koi.position.y
+                let dx1=p1.x-koi.position.x,dy1=p1.y-koi.position.y
+                return dx0*dx0+dy0*dy0 < dx1*dx1+dy1*dy1
+            }!
+            feedingAssignments[koi.identity]=available.remove(at:bestIndex)
+        }
+    }
 
     private func addRipple(at point:CGPoint,large:Bool) {
         if ripples.count >= 62 {
@@ -444,11 +488,21 @@ final class PondScene: SKScene {
             foodRemaining -= dt
             if foodRemaining <= 0 { foodLocation=nil }
         }
-        for koi in fish { koi.simulate(step:dt,pondSize:size,food:foodLocation) }
+        if !feedingAssignments.isEmpty || !foodPellets.isEmpty {
+            refreshFeedingAssignments()
+        }
+        for koi in fish {
+            let pellet=feedingAssignments[koi.identity]
+            koi.simulate(step:dt,pondSize:size,food:pellet?.anchor)
+        }
         for pellet in foodPellets {
             if !pellet.advance(dt,fish:fish) { pellet.node.removeFromParent() }
         }
         foodPellets.removeAll { $0.consumed || $0.age >= 4.8 }
+        if foodPellets.isEmpty {
+            feedingAssignments.removeAll()
+            foodLocation=nil
+        }
         // Advance actual falling streaks; ripple and tiny impact flash start
         // only when the droplet reaches the surface or a nearby lotus leaf.
         for drop in fallingDrops {
