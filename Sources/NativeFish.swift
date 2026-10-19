@@ -43,6 +43,9 @@ final class NativeFish: SKNode {
     private var heading: CGFloat
     private var goal: CGPoint = .zero
     private var goalAge: TimeInterval = 0
+    // Feeding is a short burst of activity, not a permanent alteration
+    // of the established 11-fish free-swimming behaviour.
+    private var feedingExcitement: CGFloat = 0
     private let swimSpeed: CGFloat
     private let maxTurn: CGFloat
     private let tailRate: CGFloat
@@ -412,7 +415,12 @@ final class NativeFish: SKNode {
     }
 
     func simulate(step dt:TimeInterval,pondSize:CGSize,food:CGPoint?) {
-        phase += CGFloat(dt)*CGFloat.pi*2*tailRate
+        // Fish notice grain almost immediately (~0.18s to full excitement),
+        // accelerate and turn sharply, then ease back into the accepted idle swim.
+        let step=CGFloat(dt)
+        if food != nil { feedingExcitement=min(1,feedingExcitement+step*5.6) }
+        else { feedingExcitement=max(0,feedingExcitement-step*1.3) }
+        phase += step*CGFloat.pi*2*tailRate*(1+feedingExcitement*0.6)
         goalAge += dt
         let margin=length*0.83
         if let food=food { goal=food;goalAge=0 }
@@ -423,11 +431,15 @@ final class NativeFish: SKNode {
         }
         let desired=atan2(goal.y-position.y,goal.x-position.x)
         let delta=atan2(sin(desired-heading),cos(desired-heading))
-        heading += max(-maxTurn*CGFloat(dt),min(maxTurn*CGFloat(dt),delta))
+        let turnRate=maxTurn*(1+feedingExcitement*4.6)
+        heading += max(-turnRate*step,min(turnRate*step,delta))
         zRotation=heading
-        let boost:CGFloat = food != nil ? 1.25 : 1.0
-        position.x += cos(heading)*swimSpeed*CGFloat(dt)*boost
-        position.y += sin(heading)*swimSpeed*CGFloat(dt)*boost
+        let distance=hypot(goal.x-position.x,goal.y-position.y)
+        let burst:CGFloat=1+feedingExcitement*(isLarge ? 2.2 : 2.0)
+        // A bite should not be a full-speed dash through the food particles.
+        let brake:CGFloat=food == nil ? 1 : max(0.32,min(1,distance/65))
+        position.x += cos(heading)*swimSpeed*step*burst*brake
+        position.y += sin(heading)*swimSpeed*step*burst*brake
         position.x = min(max(length*0.35,position.x),pondSize.width-length*0.35)
         position.y = min(max(length*0.35,position.y),pondSize.height-length*0.35)
     }
