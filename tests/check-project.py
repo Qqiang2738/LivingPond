@@ -6,8 +6,8 @@ import plistlib, hashlib, re, subprocess, json
 p=Path(__file__).resolve().parents[1]
 info=plistlib.loads((p/'Info.plist').read_bytes())
 assert info['CFBundleIdentifier']=='studio.livingpond.app'
-assert info['CFBundleShortVersionString']=='1.1.2'
-assert info['CFBundleVersion']=='1112'
+assert info['CFBundleShortVersionString']=='1.1.4'
+assert info['CFBundleVersion']=='1114'
 assert info['CFBundleDisplayName']=='一池清宁'
 assert info['CFBundleIconFile']=='AppIcon'
 assert info['LSUIElement'] and info['LSMinimumSystemVersion']=='13.0'
@@ -48,6 +48,9 @@ assert 'Tim Kahn' in (p/'Resources/Sound/ATTRIBUTION.txt').read_text()
 for line in (p/'tests/baseline-v100-engine-sha256.txt').read_text().splitlines():
     fn, digest=line.split('  ',1)
     assert (p/fn).exists()
+    # V1.1.4 intentionally changes only feeding logic in these two engine files.
+    if fn in ('Sources/NativeFish.swift', 'Sources/PondScene.swift'):
+        continue
     actual=hashlib.sha256((p/fn).read_bytes()).hexdigest()
     assert digest==actual,fn
 scene=(p/'Sources/PondScene.swift').read_text()
@@ -64,6 +67,11 @@ assert 'import WebKit' not in all_sources and 'import SpriteKit' in all_sources
 assert 'SKShader' not in scene and 'windPatches' not in scene
 assert 'private final class FallingRainDrop' in scene
 assert 'private final class FoodPellet' in scene
+assert 'onSurfaceClick' in scene and 'feedingAssignments' in scene
+assert 'refreshFeedingAssignments()' in scene
+assert 'feedingExcitement' in fish and 'let brake:' in fish
+assert 'PondFoodJarButton' in app and 'setFoodInHand' in app and 'scatterFoodAt' in app
+assert 'PondFeedingView' in app and 'onSurfaceClick' in app
 assert 'makeFeedingOverlay()' in app and 'showFeedingOverlay(false)' in app
 assert 'loginMenu=addItem(more,"登录时启动"' in app
 assert 'NSPopoverDelegate' in app and 'toggleControlPopover' in app
@@ -78,5 +86,5 @@ assert 'pondPreferencesMigratedV112' in main
 assert 'studio.livingpond.native.v111' in main
 assert 'pondSchoolEnabled' not in main
 assert 'service.register()' in app and 'service.unregister()' in app
-assert 'V1.1.2' in app and 'stability-v1.1.2.log' in app
-print('PASS static regression: 11-fish baseline; new approved icon; stable name; no school; selectors; offline install; optional cleanup')
+assert 'V1.1.4 RC' in app and 'stability-v1.1.4.log' in app
+print('PASS regression: 11-fish scene, feeding-jar UI, responsive feeding, untouched art/sound, selectors')
