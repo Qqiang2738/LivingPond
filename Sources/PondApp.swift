@@ -107,7 +107,6 @@ final class PondApp: NSObject, NSApplicationDelegate {
             button.toolTip="一池清宁 · 喂鱼、听雨"
         }
         let menu=NSMenu(title:"一池清宁")
-        menu.delegate = self
         let heading=addItem(menu,"一池清宁",nil)
         heading.isEnabled=false
         menu.addItem(.separator())
