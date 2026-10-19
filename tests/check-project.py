@@ -7,7 +7,7 @@ p=Path(__file__).resolve().parents[1]
 info=plistlib.loads((p/'Info.plist').read_bytes())
 assert info['CFBundleIdentifier']=='studio.livingpond.app'
 assert info['CFBundleShortVersionString']=='1.1.5'
-assert info['CFBundleVersion']=='1115'
+assert info['CFBundleVersion']=='11151'
 assert info['CFBundleDisplayName']=='一池清宁'
 assert info['CFBundleIconFile']=='AppIcon'
 assert info['LSUIElement'] and info['LSMinimumSystemVersion']=='13.0'
