@@ -217,14 +217,71 @@ private enum PondJarCursor {
     }()
 }
 
-/// Custom cursor applies only when the desktop pond temporarily captures input.
+/// SpriteKit's SKView may reset the cursor to AppKit's default arrow after
+/// becoming key or after a cursor-update event. A cursor rectangle alone
+/// therefore cannot guarantee that the jar becomes visible immediately.
+/// Apply the cursor eagerly and reassert it only on real pointer events.
 private final class PondFeedingView: SKView {
+    private var pointerTrackingArea: NSTrackingArea?
+
     var feedingMode=false {
-        didSet { window?.invalidateCursorRects(for:self) }
+        didSet {
+            guard feedingMode != oldValue else { return }
+            window?.invalidateCursorRects(for:self)
+            if feedingMode {
+                applyFeedingCursor()
+            } else {
+                NSCursor.arrow.set()
+            }
+        }
     }
+
+    func applyFeedingCursor() {
+        guard feedingMode else { return }
+        if NSCursor.current !== PondJarCursor.cursor {
+            PondJarCursor.cursor.set()
+        }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let previous=pointerTrackingArea { removeTrackingArea(previous) }
+        let area=NSTrackingArea(rect:.zero,
+                                options:[.mouseEnteredAndExited,.mouseMoved,
+                                         .cursorUpdate,.activeInKeyWindow,.inVisibleRect],
+                                owner:self,userInfo:nil)
+        addTrackingArea(area)
+        pointerTrackingArea=area
+    }
+
     override func resetCursorRects() {
         super.resetCursorRects()
         addCursorRect(bounds,cursor:feedingMode ? PondJarCursor.cursor : .arrow)
+    }
+
+    override func cursorUpdate(with event:NSEvent) {
+        if feedingMode { applyFeedingCursor() }
+        else { super.cursorUpdate(with:event) }
+    }
+
+    override func mouseEntered(with event:NSEvent) {
+        super.mouseEntered(with:event)
+        applyFeedingCursor()
+    }
+
+    override func mouseMoved(with event:NSEvent) {
+        super.mouseMoved(with:event)
+        applyFeedingCursor()
+    }
+
+    override func mouseDragged(with event:NSEvent) {
+        super.mouseDragged(with:event)
+        applyFeedingCursor()
+    }
+
+    override func mouseExited(with event:NSEvent) {
+        super.mouseExited(with:event)
+        NSCursor.arrow.set()
     }
 }
 
@@ -834,6 +891,9 @@ final class PondApp: NSObject, NSApplicationDelegate {
         if value && paused { togglePause() }
         interactive=value
         (view as? PondFeedingView)?.feedingMode=value
+        // SpriteKit does not request mouseMoved by default. This is required
+        // for re-applying the native cursor after macOS replaces its pointer.
+        window.acceptsMouseMovedEvents=value
         if value {
             // Deliberately temporary, above Finder only while feeding fish.
             window.level = .floating
@@ -841,6 +901,9 @@ final class PondApp: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps:true)
             window.makeKeyAndOrderFront(nil)
             if let view=view { window.makeFirstResponder(view) }
+            // Apply only AFTER the desktop window has become key, otherwise
+            // AppKit immediately restores the standard arrow on activation.
+            (view as? PondFeedingView)?.applyFeedingCursor()
         } else {
             // Let the exit HUD fade before sinking back beneath Finder icons.
             // Mouse input is immediately returned to Finder during the fade.
