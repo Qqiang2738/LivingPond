@@ -11,9 +11,9 @@
 	<key>CFBundleExecutable</key>
 	<string>LivingPond</string>
 	<key>CFBundleVersion</key>
-	<string>11151</string>
+	<string>11152</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.5</string>
+	<string>1.1.5.2</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>

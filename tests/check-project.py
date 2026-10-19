@@ -6,8 +6,8 @@ import plistlib, hashlib, re, subprocess, json
 p=Path(__file__).resolve().parents[1]
 info=plistlib.loads((p/'Info.plist').read_bytes())
 assert info['CFBundleIdentifier']=='studio.livingpond.app'
-assert info['CFBundleShortVersionString']=='1.1.5'
-assert info['CFBundleVersion']=='11151'
+assert info['CFBundleShortVersionString']=='1.1.5.2'
+assert info['CFBundleVersion']=='11152'
 assert info['CFBundleDisplayName']=='一池清宁'
 assert info['CFBundleIconFile']=='AppIcon'
 assert info['LSUIElement'] and info['LSMinimumSystemVersion']=='13.0'
@@ -70,7 +70,7 @@ assert 'private final class FoodPellet' in scene
 assert 'onSurfaceClick' in scene and 'feedingAssignments' in scene
 assert 'refreshFeedingAssignments()' in scene
 assert 'feedingExcitement' in fish and 'let brake:' in fish
-assert 'PondFoodJarButton' in app and 'setFoodInHand' in app and 'scatterFoodAt' in app
+assert 'PondJarCursor' in app and 'scatterFoodAt' in app and 'setFoodInHand' not in app
 assert 'PondFeedingView' in app and 'onSurfaceClick' in app
 assert 'makeFeedingOverlay()' in app and 'showFeedingOverlay(false)' in app
 assert 'loginMenu=addItem(more,"登录时启动"' in app
@@ -86,5 +86,5 @@ assert 'pondPreferencesMigratedV112' in main
 assert 'studio.livingpond.native.v111' in main
 assert 'pondSchoolEnabled' not in main
 assert 'service.register()' in app and 'service.unregister()' in app
-assert 'V1.1.4 RC' in app and 'stability-v1.1.4.log' in app
-print('PASS regression: 11-fish scene, feeding-jar UI, responsive feeding, untouched art/sound, selectors')
+assert 'V1.1.5.2 RC' in app and 'stability-v1.1.4.log' in app
+print('PASS regression: 11-fish scene, ceramic jar cursor, responsive feeding, untouched art/sound, selectors')
