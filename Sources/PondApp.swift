@@ -17,6 +17,12 @@ final class PondApp: NSObject, NSApplicationDelegate {
     private var view: SKView?
     private var scene: PondScene?
     private var status: NSStatusItem?
+    // Keep NSMenuItems as lightweight state holders, but never attach an NSMenu
+    // to the status item. Native menu tracking interrupts the pond render loop.
+    private var menuState: NSMenu?
+    private var controlPopover: NSPopover?
+    private enum ControlPage { case home, settings, audio, diagnostics }
+    private var controlPage: ControlPage = .home
     private var interactionMenu: NSMenuItem?
     private var pauseMenu: NSMenuItem?
     private var rainMenu: NSMenuItem?
@@ -155,7 +161,153 @@ final class PondApp: NSObject, NSApplicationDelegate {
         menu.setSubmenu(more,for:moreParent)
         menu.addItem(.separator())
         _=addItem(menu,"退出一池清宁",#selector(quitApp))
-        status?.menu=menu
+        menuState = menu
+        // Clicking the menu-bar icon shows a non-modal AppKit popover instead.
+        // In particular: never set status.menu, which enters menu-tracking mode.
+        status?.menu = nil
+        status?.button?.target = self
+        status?.button?.action = #selector(toggleControlPopover)
+    }
+
+    /// The control surface is a transient NSViewController, not an NSMenu.
+    /// Status-menu tracking can starve a continuously rendering SpriteKit scene;
+    /// a non-modal popover leaves the ordinary app run loop in charge.
+    @objc private func toggleControlPopover() {
+        if let existing = controlPopover, existing.isShown {
+            existing.performClose(nil)
+            return
+        }
+        guard let button = status?.button else { return }
+        let pop = controlPopover ?? NSPopover()
+        pop.behavior = .transient
+        pop.animates = false
+        pop.delegate = self
+        controlPopover = pop
+        loginMenu?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        showControlPage(.home)
+        // Do not force activation of the fullscreen desktop window.
+        pop.show(relativeTo:button.bounds, of:button, preferredEdge:.minY)
+    }
+
+    private func showControlPage(_ page:ControlPage) {
+        controlPage=page
+        let heading:String
+        var rows:[(String,Int)]=[]
+        switch page {
+        case .home:
+            heading="一池清宁"
+            rows=[
+                (interactive ? "结束喂鱼（Esc）" : "喂鱼…",1),
+                (paused ? "继续鱼塘" : "暂停鱼塘",2),
+                (rain ? "✓  细雨涟漪" : "细雨涟漪",3),
+                (soundEnabled ? "✓  细雨声" : "细雨声",4),
+                ("更多设置  ›",10),
+                ("退出一池清宁",5)
+            ]
+        case .settings:
+            heading="更多设置"
+            rows=[
+                ("‹  返回",90),
+                ("声音选项  ›",11),
+                (SMAppService.mainApp.status == .enabled ? "✓  登录时启动" : "登录时启动",6),
+                (lowPower ? "✓  省电模式 · 30 FPS" : "省电模式 · 30 FPS",7),
+                ("诊断与日志  ›",12),
+                ("关于一池清宁…",15)
+            ]
+        case .audio:
+            heading="声音选项"
+            rows=[("‹  更多设置",91)]
+            let volume=Int((sound.volume*100).rounded())
+            for pct in [15,30,50,70,100] {
+                rows.append((volume == pct ? "✓  音量 \(pct)%" : "音量 \(pct)%",1000+pct))
+            }
+            rows += [
+                ("导入自己的雨声…",8),
+                ("恢复内置雨声",9),
+                ("检查声音播放状态…",13)
+            ]
+        case .diagnostics:
+            heading="诊断与日志"
+            rows=[
+                ("‹  更多设置",91),
+                ("画面性能…",14),
+                ("重新开始性能采样",16),
+                (stabilityActive ? "停止稳定性记录…" : "开始 30 分钟稳定性记录…",17),
+                ("查看稳定性日志…",18)
+            ]
+        }
+
+        let height=CGFloat(58 + rows.count*34)
+        let root=NSView(frame:NSRect(x:0,y:0,width:260,height:height))
+        let stack=NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing=4
+        stack.translatesAutoresizingMaskIntoConstraints=false
+        root.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo:root.leadingAnchor,constant:12),
+            stack.trailingAnchor.constraint(equalTo:root.trailingAnchor,constant:-12),
+            stack.topAnchor.constraint(equalTo:root.topAnchor,constant:12)
+        ])
+        let title=NSTextField(labelWithString:heading)
+        title.font=NSFont.systemFont(ofSize:14,weight:.semibold)
+        title.textColor = .secondaryLabelColor
+        title.translatesAutoresizingMaskIntoConstraints=false
+        title.heightAnchor.constraint(equalToConstant:30).isActive=true
+        stack.addArrangedSubview(title)
+        for (text,code) in rows {
+            let button=NSButton(title:text,target:self,action:#selector(controlAction(_:)))
+            button.tag=code
+            button.isBordered=false
+            button.alignment = .left
+            button.font=NSFont.systemFont(ofSize:13)
+            button.setAccessibilityLabel(text)
+            button.translatesAutoresizingMaskIntoConstraints=false
+            button.heightAnchor.constraint(equalToConstant:30).isActive=true
+            button.widthAnchor.constraint(equalToConstant:236).isActive=true
+            stack.addArrangedSubview(button)
+        }
+        let controller=NSViewController()
+        controller.view=root
+        controller.preferredContentSize=root.frame.size
+        controlPopover?.contentViewController=controller
+        controlPopover?.contentSize=root.frame.size
+    }
+
+    /// Simple explicit actions avoid NSMenu's nested tracking loop.
+    @objc private func controlAction(_ sender:NSButton) {
+        switch sender.tag {
+        case 10: showControlPage(.settings); return
+        case 11: showControlPage(.audio); return
+        case 12: showControlPage(.diagnostics); return
+        case 90: showControlPage(.home); return
+        case 91: showControlPage(.settings); return
+        default: break
+        }
+        controlPopover?.performClose(nil)
+        switch sender.tag {
+        case 1: toggleInteractive()
+        case 2: togglePause()
+        case 3: toggleRain()
+        case 4: toggleSound()
+        case 5: quitApp()
+        case 6: toggleLaunchAtLogin()
+        case 7: toggleLowPower()
+        case 8: importSound()
+        case 9: useBundledSound()
+        case 13: showAudioStatus()
+        case 14: showPerformance()
+        case 15: showAbout()
+        case 16: resetPerformance()
+        case 17: toggleStabilityMonitoring()
+        case 18: openStabilityLog()
+        case 1015,1030,1050,1070,1100:
+            let menuItem=NSMenuItem(title:"",action:nil,keyEquivalent:"")
+            menuItem.tag=sender.tag-1000
+            changeVolume(menuItem)
+        default: break
+        }
     }
 
     private func refreshVolumeMenu() {
@@ -589,9 +741,10 @@ final class PondApp: NSObject, NSApplicationDelegate {
     }
 }
 
-// Sync login status from macOS, including changes made in System Settings.
-extension PondApp: NSMenuDelegate {
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        loginMenu?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+// The popover disappears when the user clicks outside, including on the pond.
+// The clock reset is defensive only; avoiding NSMenu tracking is the real change.
+extension PondApp: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        scene?.resetFrameClock()
     }
 }
